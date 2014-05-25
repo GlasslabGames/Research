@@ -1,0 +1,23 @@
+{
+    "name": "Resaerch-Services",
+    "version": "0.1.0",
+    "private": true,
+    "dependencies": {
+        "when":           "2.7.x",
+        "lodash":         "2.4.x",
+        "express":        "3.4.x",
+        "multiparty":     "3.1.x",
+        "request":        "2.27.x",
+        "mysql":          "2.0.x",
+        "validator":      "2.0.x",
+        "couchbase":      "1.2.x",
+        "node-uuid":      "1.4.x",
+        "node-statsd":    "0.0.x",
+        "moment":         "2.5.x",
+        "q-io":           "1.11.x",
+        "nodemailer":     "0.6.x",
+        "ejs":            "1.0.x",
+        "csv":            "0.3.x",
+        "csv-stringify":  "0.0.x"
+    }
+}

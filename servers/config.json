@@ -1,0 +1,34 @@
+{
+    "env": "dev",
+    "request": {
+        "httpTimeout": 60000, "//": "1 min in milliseconds"
+    },
+    "services": {
+        "port": 8090,
+        "session": {
+            "secret": "keyboard kitty",
+            "cookie": {
+                "path": "/",
+                "httpOnly": false
+            },
+            "store": {
+                "host":     "localhost:8091",
+                "bucket":   "glasslab_webapp",
+                "password": "glasslab",
+                "ttl": 86400, "//": "24 hours in seconds"
+            }
+        }
+    },
+    "research": {
+        "datastore": {
+            "couchbase": {
+                "host":     "localhost:8091",
+                "bucket":   "glasslab_gamedata",
+                "password": "glasslab"
+            }
+        }
+    },
+    "webapp": {
+        "staticContentPath": "static"
+    }
+}
