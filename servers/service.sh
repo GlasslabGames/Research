@@ -8,7 +8,7 @@ start() {
     npm install
     grunt
 
-    ./service_start.sh app "app.js"
+    ./service_start.sh research
 }
 
 stop() {
