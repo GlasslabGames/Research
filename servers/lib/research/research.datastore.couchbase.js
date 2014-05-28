@@ -10,6 +10,7 @@
 // Third-party libs
 var _         = require('lodash');
 var when      = require('when');
+var guard     = require('when/guard');
 var couchbase = require('couchbase');
 // load at runtime
 var Util;
@@ -64,6 +65,18 @@ return when.promise(function(resolve, reject) {
 };
 
 
+// http://stackoverflow.com/questions/19178782/how-to-reshape-an-array-with-lodash
+// In:  array = [1, 2, 3, 4, 5, 6, ,7, 8], n = 3
+// Out: [[1, 2, 3], [4, 5, 6], [7, 8]]
+function reshape(array, n){
+    return _.compact(array.map(function(el, i){
+        if (i % n === 0) {
+            return array.slice(i, i + n);
+        }
+    }));
+}
+
+
 ResearchDS_Couchbase.prototype.getEventsByDate = function(startDateArray, endDateArray, limit){
 // add promise wrapper
 return when.promise(function(resolve, reject) {
@@ -105,31 +118,32 @@ return when.promise(function(resolve, reject) {
             }
 
             var keys = [];
+            var allEvents = [];
             for (var i = 0; i < results.length; ++i) {
-                keys.push(results[i].id);
+                keys.push( results[i].id );
             }
 
-            //console.log("CouchBase ResearchStore: keys", keys);
-            console.log("CouchBase ResearchStore: getEventsByDate events:", keys.length);
-            this.client.getMulti(keys, {},
-                function(err, results){
-                    if(err){
-                        console.error("CouchBase ResearchStore: Multi Get Events Error -", err);
-                        if(results) {
-                            console.error("CouchBase ResearchStore: Multi Get Events Error - results:", results);
-                        }
-                        reject(err);
-                        return;
-                    }
+            var chunckSize = 2000;
+            var taskList = reshape(keys, chunckSize);
+            var guardedAsyncOperation, taskResults;
+            // Allow only 1 inflight execution of guarded
+            guardedAsyncOperation = guard(guard.n(1), this._getEventsByKeys.bind(this));
+            taskResults = when.map(taskList, guardedAsyncOperation);
+            taskResults.then(
+                function(events){
+                    allEvents = allEvents.concat(events);
+                    console.log("getEventsByKeys events.length:", events.length, ", allEvents.length:", allEvents.length);
+                }.bind(this),
+                //errors
+                function(err){
+                    reject(err);
+                }.bind(this)
+            )
+            .done(function(){
+                console.log("getEventsByDate Done");
+                resolve(allEvents);
+            }.bind(this));
 
-                    var events = [];
-                    for(var i in results) {
-                        events.push( results[i].value );
-                    }
-
-                    //console.log("getRawEvents events:", events);
-                    resolve(events);
-                }.bind(this));
 
         }.bind(this));
 
@@ -137,3 +151,32 @@ return when.promise(function(resolve, reject) {
 }.bind(this));
 // end promise wrapper
 };
+
+ResearchDS_Couchbase.prototype._getEventsByKeys = function(keys) {
+// add promise wrapper
+return when.promise(function(resolve, reject) {
+// ------------------------------------------------
+    console.log("CouchBase ResearchStore: getEventsByKeys events:", keys.length);
+    this.client.getMulti(keys, {},
+        function (err, results) {
+            if (err) {
+                console.error("CouchBase ResearchStore: Multi Get Events Error -", err);
+                if (results) {
+                    console.error("CouchBase ResearchStore: Multi Get Events Error - results:", results);
+                }
+                reject(err);
+                return;
+            }
+
+            var events = [];
+            for (var i in results) {
+                events.push(results[i].value);
+            }
+
+            //console.log("getRawEvents events:", events);
+            resolve(events);
+        }.bind(this));
+// ------------------------------------------------
+}.bind(this));
+// end promise wrapper
+}
