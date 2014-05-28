@@ -125,23 +125,25 @@ return when.promise(function(resolve, reject) {
 
             var chunckSize = 2000;
             var taskList = reshape(keys, chunckSize);
+            console.log("getEventsByKeys taskList.length:", taskList.length);
+
             var guardedAsyncOperation, taskResults;
             // Allow only 1 inflight execution of guarded
             guardedAsyncOperation = guard(guard.n(1), this._getEventsByKeys.bind(this));
             taskResults = when.map(taskList, guardedAsyncOperation);
             taskResults.then(
                 function(events){
-                    allEvents = allEvents.concat(events);
-                    console.log("getEventsByKeys events.length:", events.length, ", allEvents.length:", allEvents.length);
+                    events = _.flatten(events);
+                    console.log("getEventsByKeys events.length:", events.length);
+                    return events;
                 }.bind(this),
                 //errors
                 function(err){
                     reject(err);
                 }.bind(this)
             )
-            .done(function(){
-                console.log("getEventsByDate Done");
-                resolve(allEvents);
+            .done(function(events){
+                resolve(events);
             }.bind(this));
 
 
@@ -173,7 +175,7 @@ return when.promise(function(resolve, reject) {
                 events.push(results[i].value);
             }
 
-            //console.log("getRawEvents events:", events);
+            //console.log("getRawEvents events.length:", events.length);
             resolve(events);
         }.bind(this));
 // ------------------------------------------------
