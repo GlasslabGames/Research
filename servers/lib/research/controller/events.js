@@ -153,6 +153,9 @@ function processEvents(gameId, events, timeFormat) {
             var re = new RegExp("\\{[\\$a-zA-Z0-9]*\\}", 'g');
             row = row.replace(re, '');
 
+            // convert eventData back to object
+            event.eventData = JSON.parse(event.eventData);
+
             // replace all eventData items in row
             for(var d in event.eventData) {
                 var re = new RegExp("\\["+d+"\\]", 'g');
