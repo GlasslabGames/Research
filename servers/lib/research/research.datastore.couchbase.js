@@ -74,7 +74,6 @@ return when.promise(function(resolve, reject) {
     //startDateArray.pop();
 
     var options = {
-        stale: false,
         startkey: startDateArray
     };
 
@@ -87,12 +86,10 @@ return when.promise(function(resolve, reject) {
     }
 
     if(limit) {
-        options.limit = limit;
+        options.limit = parseInt(limit);
     }
 
-    options = _.cloneDeep(options);
-    console.log("CouchBase ResearchStore: getEventsByDate - options:", options);
-
+    //console.log("CouchBase ResearchStore: getEventsByDate - options:", options);
     this.client.view("telemetry", "getEventsByServerTimeStamp").query(
         options,
         function(err, results){
