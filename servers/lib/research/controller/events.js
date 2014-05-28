@@ -137,7 +137,14 @@ function processEvents(gameId, events, timeFormat) {
                 sessionOrderList[event.gameSessionId] = event.gameSessionEventOrder;
             }
 
+            // convert all Object to JSON
+            for(var e in event) {
+                if( _.isObject(event[e]) ) {
+                    event[e] = JSON.stringify(event[e]);
+                }
+            }
 
+            // replace all event (root) items in row
             for(var e in event) {
                 var re = new RegExp("\\{"+e+"\\}", 'g');
                 row = row.replace(re, event[e]);
@@ -146,6 +153,7 @@ function processEvents(gameId, events, timeFormat) {
             var re = new RegExp("\\{[\\$a-zA-Z0-9]*\\}", 'g');
             row = row.replace(re, '');
 
+            // replace all eventData items in row
             for(var d in event.eventData) {
                 var re = new RegExp("\\["+d+"\\]", 'g');
                 row = row.replace(re, event.eventData[d]);
