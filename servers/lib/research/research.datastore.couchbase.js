@@ -90,7 +90,9 @@ return when.promise(function(resolve, reject) {
         options.limit = limit;
     }
 
-    console.log("CouchBase ResearchStore: getEventsByDate - startDateArray:", startDateArray, ", endDateArray:", endDateArray);
+    options = _.cloneDeep(options);
+    console.log("CouchBase ResearchStore: getEventsByDate - options:", options);
+
     this.client.view("telemetry", "getEventsByServerTimeStamp").query(
         options,
         function(err, results){
