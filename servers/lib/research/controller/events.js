@@ -12,7 +12,10 @@ module.exports = {
 /*
  http://localhost:8090/research/events/get?gameId=AA-1&startDate=2014-05-01
 
+ http://stage.argubotacademy.org:8090/research/events/get?gameId=AA-1&startDate=2014-05-01
+
  http://localhost:8090/research/events/get?gameId=AA-1&startDate=2014-05-01&endDate=2014-05-14&timeFormat="MM/DD/YYYY HH:mm:ss"
+
 
  required:
     gameId
