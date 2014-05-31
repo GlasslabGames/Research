@@ -81,7 +81,8 @@ return when.promise(function(resolve, reject) {
                                 row.shift(); // remove first column
                                 this.parsedSchema[name].header = csv().stringifier.stringify(row);
                             } else {
-                                this.parsedSchema[name].rows[ row[0] ] = csv().stringifier.stringify(row.slice(1));
+                                var key = row.shift(); // remove first (key) column
+                                this.parsedSchema[name].rows[ key ] = row;
                             }
 
                             //console.log('#'+index+' '+JSON.stringify(row));

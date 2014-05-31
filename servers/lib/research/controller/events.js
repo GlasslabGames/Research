@@ -1,9 +1,7 @@
 
 var _         = require('lodash');
-var when      = require('when');
 var moment    = require('moment');
-
-var Util      = require('../../core/util.js');
+var csv       = require('csv');
 
 module.exports = {
     getEventsByDate: getEventsByDate
@@ -104,10 +102,10 @@ function processEvents(gameId, events, timeFormat) {
     var parsedSchema = this.parsedSchema[gameId];
     //console.log("Parsed Schema for", gameId, ":", parsedSchema);
 
-    var sessionOrderList = {};
-    var out = parsedSchema.header + "\n";
-    var row = "";
+    var strOut = "";
+    strOut += parsedSchema.header + "\n";
 
+    var row = [];
     for(var i = 0; i < events.length; i++) {
         var event = events[i];
 
@@ -122,55 +120,65 @@ function processEvents(gameId, events, timeFormat) {
                 event.serverTimeStamp = moment(event.serverTimeStamp*1000).format(timeFormat);
             }
 
-            // if gameSessionEventOrder not exist,
-            // then maintain one in mem
-            if(!event.gameSessionEventOrder) {
-                // if session not in list then gen
-                if(!sessionOrderList.hasOwnProperty(event.gameSessionId)) {
-                    sessionOrderList[event.gameSessionId] = 1;
-                } else {
-                    sessionOrderList[event.gameSessionId]++;
-                }
-                event.gameSessionEventOrder = sessionOrderList[event.gameSessionId];
-            } else {
-                // else update in mem in case an event doesn't have an order
-                sessionOrderList[event.gameSessionId] = event.gameSessionEventOrder;
+            for(var r in row) {
+                row[r] = parseItems(event, row[r], '{', '}');
+                row[r] = parseItems(event.eventData, row[r], '[', ']');
             }
 
-            // convert all Object to JSON
-            for(var e in event) {
-                if( _.isObject(event[e]) ) {
-                    event[e] = JSON.stringify(event[e]);
-                }
-            }
-
-            // replace all event (root) items in row
-            for(var e in event) {
-                var re = new RegExp("\\{"+e+"\\}", 'g');
-                row = row.replace(re, event[e]);
-            }
-            // clear out all remaining variables
-            var re = new RegExp("\\{[\\$a-zA-Z0-9]*\\}", 'g');
-            row = row.replace(re, '');
-
-            // convert eventData back to object
-            event.eventData = JSON.parse(event.eventData);
-
-            // replace all eventData items in row
-            for(var d in event.eventData) {
-                var re = new RegExp("\\["+d+"\\]", 'g');
-                row = row.replace(re, event.eventData[d]);
-            }
-            // clear out all remaining variables
-            var re = new RegExp("\\[[\\$a-zA-Z0-9]*\\]", 'g');
-            row = row.replace(re, '');
-
-            out += row + "\n";
-            //console.log("Process Event - row:", row);
+            strOut += csv().stringifier.stringify(row) + "\n";
         } else {
             //console.log("Process Event - Event Name not in List:", event.eventName);
         }
     }
 
-    return out;
+    return strOut;
+}
+
+function parseItems(event, row, left, right){
+    var re = new RegExp("\\"+left+"(.*?)\\"+right, 'g');
+    var matchs = getMatches(row, re, 1);
+
+    var item = "", key = "";
+    for(var m in matchs) {
+        key = left + matchs[m] + right;
+        item = processSpecialRowItem(matchs[m], event);
+
+        var reReplace = new RegExp(escapeRegExp(key), 'g');
+        row = row.replace(reReplace, item);
+    }
+
+    return row;
+}
+
+function processSpecialRowItem (item, data) {
+    var results = "";
+    with(data){
+        try {
+            results = eval(item);
+        }
+        catch(err) {
+            // this is ok
+        }
+    }
+
+    if(_.isObject(results)) {
+        results = JSON.stringify(results);
+    }
+
+    return results;
+}
+
+
+function escapeRegExp(string) {
+    return string.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1");
+}
+
+function getMatches(string, regex, index) {
+    index = index || 1; // default to the first capturing group
+    var matches = [];
+    var match;
+    while (match = regex.exec(string)) {
+        matches.push(match[index]);
+    }
+    return matches;
 }
