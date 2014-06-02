@@ -123,8 +123,7 @@ return when.promise(function(resolve, reject) {
                 keys.push( results[i].id );
             }
 
-            var chunckSize = 2000;
-            var taskList = reshape(keys, chunckSize);
+            var taskList = reshape(keys, this.options.multiGetChunkSize);
             console.log("getEventsByKeys taskList.length:", taskList.length);
 
             var guardedAsyncOperation, taskResults;

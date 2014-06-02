@@ -20,6 +20,7 @@
         }
     },
     "research": {
+        "dataChunkSize": 2000,
         "datastore": {
             "couchbase": {
                 "host":     "localhost:8091",

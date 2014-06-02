@@ -70,7 +70,7 @@ function getEventsByDate(req, res, next){
                         }
                     );
 
-                    console.log("Process", events.length, "Events...");
+                    console.log("Processing", events.length, "Events...");
                     // process events
                     var out = processEvents.call(this, gameId, events, timeFormat);
                     res.writeHead(200, {
@@ -97,6 +97,7 @@ function getEventsByDate(req, res, next){
     }
 }
 
+// TODO: make this async so it's not blocking
 function processEvents(gameId, events, timeFormat) {
     //console.log("events:", events);
     var parsedSchema = this.parsedSchema[gameId];
@@ -106,10 +107,12 @@ function processEvents(gameId, events, timeFormat) {
     strOut += parsedSchema.header + "\n";
 
     var row = [];
-    for(var i = 0; i < events.length; i++) {
-        var event = events[i];
+    events.forEach(function(event, i) {
+        if( i != 0 &&
+            i % this.options.research.dataChunkSize == 0) {
+            console.log("Processed Events:", i);
+        }
 
-        //console.log("Process Event", i);
         // event name exists in parse map
         if( parsedSchema.rows.hasOwnProperty(event.eventName) ) {
             row = _.clone( parsedSchema.rows[ event.eventName ] );
@@ -129,7 +132,8 @@ function processEvents(gameId, events, timeFormat) {
         } else {
             //console.log("Process Event - Event Name not in List:", event.eventName);
         }
-    }
+    }.bind(this));
+    console.log("Done Processing "+events.length+" Events");
 
     return strOut;
 }

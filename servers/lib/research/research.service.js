@@ -31,6 +31,9 @@ function ResearchService(options){
         Util     = require('../core/util.js');
         Research = require('./research.js');
 
+        // add multiGetChunkSize to couchbase options
+        this.options.research.datastore.couchbase.multiGetChunkSize = this.options.research.dataChunkSize;
+
         this.requestUtil = new Util.Request(this.options);
         this.store       = new Research.Datastore.Couchbase(this.options.research.datastore.couchbase);
         this.stats       = new Util.Stats(this.options, "Research");
