@@ -30,9 +30,24 @@ function getEventsByDate(req, res, next){
             this.requestUtil.errorResponse(res, {error: "missing gameId"}, 401);
             return;
         }
-        var gameId = req.query.gameId;
+        var gameIds = req.query.gameId;
+        try {
+            //  if not array then make array
+            if (_.isString(gameIds)) {
+                gameIds = JSON.parse(gameIds);
+            }
+        } catch(err) {
+            // this is ok, will assume it's just a string
+            gameIds = [gameIds];
+        }
 
-        if(!this.parsedSchema.hasOwnProperty(gameId)) {
+        // if no schema assume it's gameId
+        var schema = gameIds[0];
+        if(req.query.schema) {
+            schema = req.query.schema;
+        }
+
+        if(!this.parsedSchema.hasOwnProperty(schema)) {
             this.requestUtil.errorResponse(res, {error: "missing game parser schema"}, 401);
             return;
         }
@@ -66,13 +81,15 @@ function getEventsByDate(req, res, next){
                     console.log("Running Filter...");
                     events = _.filter(events,
                         function (event) {
-                            return (event.gameId == gameId);
+                            return _.find(gameIds, function(gameId) {
+                                return (event.clientId == gameId);
+                            });
                         }
                     );
 
                     console.log("Processing", events.length, "Events...");
                     // process events
-                    var out = processEvents.call(this, gameId, events, timeFormat);
+                    var out = processEvents.call(this, schema, events, timeFormat);
                     res.writeHead(200, {
                         'Content-Type': 'text/plain'
                         //'Content-Type': 'text/csv'
@@ -98,10 +115,10 @@ function getEventsByDate(req, res, next){
 }
 
 // TODO: make this async so it's not blocking
-function processEvents(gameId, events, timeFormat) {
+function processEvents(schema, events, timeFormat) {
     //console.log("events:", events);
-    var parsedSchema = this.parsedSchema[gameId];
-    //console.log("Parsed Schema for", gameId, ":", parsedSchema);
+    var parsedSchema = this.parsedSchema[schema];
+    //console.log("Parsed Schema for", schema, ":", parsedSchema);
 
     var strOut = "";
     strOut += parsedSchema.header + "\n";
