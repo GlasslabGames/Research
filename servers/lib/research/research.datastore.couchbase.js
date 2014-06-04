@@ -124,7 +124,8 @@ return when.promise(function(resolve, reject) {
             }
 
             var taskList = reshape(keys, this.options.multiGetChunkSize);
-            console.log("getEventsByKeys taskList.length:", taskList.length);
+            console.log("getEventsByKeys totalEvents:", taskList.length);
+            var totalEvents = 0;
 
             var guardedAsyncOperation, taskResults;
             // Allow only 1 inflight execution of guarded
@@ -133,7 +134,8 @@ return when.promise(function(resolve, reject) {
             taskResults.then(
                 function(events){
                     events = _.flatten(events);
-                    console.log("getEventsByKeys events.length:", events.length);
+                    totalEvents += events.length;
+                    console.log("getEventsByKeys events:", totalEvents);
                     return events;
                 }.bind(this),
                 //errors
