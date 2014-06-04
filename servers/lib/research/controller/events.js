@@ -52,16 +52,33 @@ function getEventsByDate(req, res, next){
             return;
         }
 
-        if(!req.query.startDate) {
-            this.requestUtil.errorResponse(res, {error: "missing startDate"}, 401);
+        var startDate;
+        // startDate or startEpoc required
+        if(req.query.startEpoc) {
+            startDate = parseInt(req.query.startEpoc)*1000;
+        }
+        if(req.query.startDate) {
+            startDate = req.query.startDate;
+        }
+        if(!startDate) {
+            this.requestUtil.errorResponse(res, {error: "missing startDate or startEpoc missing"}, 401);
             return;
         }
-        var startDate = moment(req.query.startDate).toArray();
+        startDate = moment(startDate);
 
         var endDate;
+        if(req.query.dateRange) {
+
+            try {
+                endDate = JSON.parse(req.query.dateRange);
+                endDate = moment(startDate).add(endDate);
+            } catch(err) {
+                // error is ok, just ignore dateRange
+                console.error("dateRange err:", err);
+            }
+        }
         if(req.query.endDate) {
             endDate = moment(req.query.endDate);
-            endDate = endDate.toArray();
         }
 
         var timeFormat = "MM/DD/YYYY HH:mm:ss";
@@ -74,7 +91,8 @@ function getEventsByDate(req, res, next){
             limit = req.query.limit;
         }
 
-        this.store.getEventsByDate(startDate, endDate, limit)
+        console.log("Getting Events from", startDate.format("MM/DD/YYYY"), "to", endDate.format("MM/DD/YYYY"));
+        this.store.getEventsByDate(startDate.toArray(), endDate.toArray(), limit)
             .then(function(events){
 
                 try {
