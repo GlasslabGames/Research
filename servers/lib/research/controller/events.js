@@ -105,9 +105,8 @@ function processEvents(gameId, events, timeFormat) {
 
     var strOut = "";
     strOut += parsedSchema.header + "\n";
-
-    var row = [];
     events.forEach(function(event, i) {
+        var row = [];
         if( i != 0 &&
             i % this.options.research.dataChunkSize == 0) {
             console.log("Processed Events:", i);
@@ -115,22 +114,33 @@ function processEvents(gameId, events, timeFormat) {
 
         // event name exists in parse map
         if( parsedSchema.rows.hasOwnProperty(event.eventName) ) {
-            row = _.clone( parsedSchema.rows[ event.eventName ] );
+            row = _.clone(parsedSchema.rows[ event.eventName ]);
+        }
+        // wildcard to catch all other event types
+        else if( parsedSchema.rows.hasOwnProperty('*') ) {
+            row = _.clone(parsedSchema.rows['*']);
+        } else {
+            //console.log("Process Event - Event Name not in List:", event.eventName);
+        }
 
-            if(timeFormat) {
-                // need to convert EPOC to milliseconds
-                event.clientTimeStamp = moment(event.clientTimeStamp*1000).format(timeFormat);
-                event.serverTimeStamp = moment(event.serverTimeStamp*1000).format(timeFormat);
-            }
+        if(timeFormat) {
+            // need to convert EPOC to milliseconds
+            event.clientTimeStamp = moment(event.clientTimeStamp*1000).format(timeFormat);
+            event.serverTimeStamp = moment(event.serverTimeStamp*1000).format(timeFormat);
+        }
 
+        if(row.length > 0) {
+            // check each row item
             for(var r in row) {
-                row[r] = parseItems(event, row[r], '{', '}');
-                row[r] = parseItems(event.eventData, row[r], '[', ']');
+                if(row[r] == '*') {
+                    row[r] = JSON.stringify(event);
+                } else {
+                    row[r] = parseItems(event, row[r], '{', '}');
+                    row[r] = parseItems(event.eventData, row[r], '[', ']');
+                }
             }
 
             strOut += csv().stringifier.stringify(row) + "\n";
-        } else {
-            //console.log("Process Event - Event Name not in List:", event.eventName);
         }
     }.bind(this));
     console.log("Done Processing "+events.length+" Events");

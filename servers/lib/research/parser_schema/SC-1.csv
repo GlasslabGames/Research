@@ -1,0 +1,2 @@
+Header/EventName,clientTimeStamp,serverTimeStamp,userId,sessionId,actionName,actionData,rawData
+*,{clientTimeStamp},{serverTimeStamp},{userId},{gameSessionId},{eventName},{eventData},*
