@@ -21,6 +21,9 @@ module.exports = {
  */
 function getEventsByDate(req, res, next){
     try {
+        // set timeout so request doesn't close connection
+        req.connection.setTimeout(this.options.request.httpTimeout);
+
         if(!req.query) {
             this.requestUtil.errorResponse(res, {error: "missing arguments"}, 401);
             return;
@@ -66,7 +69,7 @@ function getEventsByDate(req, res, next){
         }
         startDate = moment(startDate);
 
-        var endDate;
+        var endDate = moment();
         if(req.query.dateRange) {
 
             try {

@@ -1,7 +1,7 @@
 {
     "env": "dev",
     "request": {
-        "httpTimeout": 60000, "//": "1 min in milliseconds"
+        "httpTimeout": 6000000, "//": "1 min in milliseconds"
     },
     "services": {
         "port": 8090,
