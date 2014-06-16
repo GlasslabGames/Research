@@ -55,8 +55,8 @@ function getEventsByDate(req, res, next){
             return;
         }
 
-        var startDate;
-        // startDate or startEpoc required
+        var startDate = moment({hour: 0});
+        // startDate or startEpoc optional
         if(req.query.startEpoc) {
             startDate = parseInt(req.query.startEpoc)*1000;
         }
@@ -103,7 +103,7 @@ function getEventsByDate(req, res, next){
                     events = _.filter(events,
                         function (event) {
                             return _.find(gameIds, function(gameId) {
-                                return (event.clientId == gameId);
+                                return ((event.gameId == gameId) || (event.clientId == gameId));
                             });
                         }
                     );
