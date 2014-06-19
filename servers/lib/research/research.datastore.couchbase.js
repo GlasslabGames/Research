@@ -153,6 +153,33 @@ return when.promise(function(resolve, reject) {
 // end promise wrapper
 };
 
+ResearchDS_Couchbase.prototype.validateSession = function(gameSessionId){
+// add promise wrapper
+return when.promise(function(resolve, reject) {
+// ------------------------------------------------
+
+    var key = "gd:gs:"+gameSessionId;
+    this.client.get(key, function(err, data){
+        if(err){
+            if(err.code == 13) {
+                resolve({});
+                return;
+            }
+
+            console.error("CouchBase TelemetryStore: Validate Session Error -", err);
+            reject(err);
+            return;
+        }
+
+        var gameSessionData = data.value;
+        resolve(gameSessionData);
+    }.bind(this));
+
+// ------------------------------------------------
+}.bind(this));
+// end promise wrapper
+};
+
 ResearchDS_Couchbase.prototype._getEventsByKeys = function(keys) {
 // add promise wrapper
 return when.promise(function(resolve, reject) {

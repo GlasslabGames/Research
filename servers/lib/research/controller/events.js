@@ -1,5 +1,6 @@
 
 var _         = require('lodash');
+var when      = require('when');
 var moment    = require('moment');
 var csv       = require('csv');
 
@@ -110,12 +111,14 @@ function getEventsByDate(req, res, next){
 
                     console.log("Processing", events.length, "Events...");
                     // process events
-                    var out = processEvents.call(this, schema, events, timeFormat);
-                    res.writeHead(200, {
-                        'Content-Type': 'text/plain'
-                        //'Content-Type': 'text/csv'
-                    });
-                    res.end(out);
+                    var p = processEvents.call(this, schema, events, timeFormat);
+                    p.then(function(out){
+                        res.writeHead(200, {
+                            'Content-Type': 'text/plain'
+                            //'Content-Type': 'text/csv'
+                        });
+                        res.end(out);
+                    }.bind(this));
 
                 } catch(err) {
                     console.trace("Research: Process Events -", err);
@@ -135,55 +138,81 @@ function getEventsByDate(req, res, next){
     }
 }
 
-// TODO: make this async so it's not blocking
 function processEvents(schema, events, timeFormat) {
+// add promise wrapper
+return when.promise(function(resolve, reject) {
+// ------------------------------------------------
+
     //console.log("events:", events);
     var parsedSchema = this.parsedSchema[schema];
     //console.log("Parsed Schema for", schema, ":", parsedSchema);
 
-    var strOut = "";
-    strOut += parsedSchema.header + "\n";
+    var outList = [];
+    var promiseList = [];
     events.forEach(function(event, i) {
-        var row = [];
-        if( i != 0 &&
-            i % this.options.research.dataChunkSize == 0) {
-            console.log("Processed Events:", i);
-        }
 
-        // event name exists in parse map
-        if( parsedSchema.rows.hasOwnProperty(event.eventName) ) {
-            row = _.clone(parsedSchema.rows[ event.eventName ]);
-        }
-        // wildcard to catch all other event types
-        else if( parsedSchema.rows.hasOwnProperty('*') ) {
-            row = _.clone(parsedSchema.rows['*']);
-        } else {
-            //console.log("Process Event - Event Name not in List:", event.eventName);
-        }
+        var p = this.store.validateSession(event.gameSessionId)
+            .then(function(sdata){
+                // add user Id to event
+                event.userId = sdata.userId;
 
-        if(timeFormat) {
-            // need to convert EPOC to milliseconds
-            event.clientTimeStamp = moment(event.clientTimeStamp*1000).format(timeFormat);
-            event.serverTimeStamp = moment(event.serverTimeStamp*1000).format(timeFormat);
-        }
+                var row = [];
+                if( i != 0 &&
+                    i % this.options.research.dataChunkSize == 0) {
+                    console.log("Processed Events:", i);
+                }
 
-        if(row.length > 0) {
-            // check each row item
-            for(var r in row) {
-                if(row[r] == '*') {
-                    row[r] = JSON.stringify(event);
+                // event name exists in parse map
+                if( parsedSchema.rows.hasOwnProperty(event.eventName) ) {
+                    row = _.clone(parsedSchema.rows[ event.eventName ]);
+                }
+                // wildcard to catch all other event types
+                else if( parsedSchema.rows.hasOwnProperty('*') ) {
+                    row = _.clone(parsedSchema.rows['*']);
                 } else {
-                    row[r] = parseItems(event, row[r], '{', '}');
-                    row[r] = parseItems(event.eventData, row[r], '[', ']');
+                    //console.log("Process Event - Event Name not in List:", event.eventName);
+                }
+
+                if(timeFormat) {
+                    // need to convert EPOC to milliseconds
+                    event.clientTimeStamp = moment(event.clientTimeStamp*1000).format(timeFormat);
+                    event.serverTimeStamp = moment(event.serverTimeStamp*1000).format(timeFormat);
+                }
+
+                if(row.length > 0) {
+                    // check each row item
+                    for(var r in row) {
+                        if(row[r] == '*') {
+                            row[r] = JSON.stringify(event);
+                        } else {
+                            row[r] = parseItems(event, row[r], '{', '}');
+                            row[r] = parseItems(event.eventData, row[r], '[', ']');
+                        }
+                    }
+
+                    outList[i] = csv().stringifier.stringify(row) + "\n";
+                }
+            }.bind(this))
+
+        promiseList.push(p);
+    }.bind(this));
+
+    when.all(promiseList)
+        .then(function(){
+            console.log("Done Processing "+events.length+" Events");
+            var strOut = parsedSchema.header + "\n";
+
+            for(var i = 0; i < outList.length; i++) {
+                if(outList[i]) {
+                    strOut += outList[i];
                 }
             }
 
-            strOut += csv().stringifier.stringify(row) + "\n";
-        }
-    }.bind(this));
-    console.log("Done Processing "+events.length+" Events");
-
-    return strOut;
+            resolve(strOut);
+        }.bind(this))
+// ------------------------------------------------
+}.bind(this));
+// end promise wrapper
 }
 
 function parseItems(event, row, left, right){
