@@ -149,12 +149,18 @@ return when.promise(function(resolve, reject) {
 
     var outList = [];
     var promiseList = [];
-    events.forEach(function(event, i) {
 
-        var p = this.store.validateSession(event.gameSessionId)
-            .then(function(sdata){
-                // add user Id to event
-                event.userId = sdata.userId;
+    gameSessionIdList = _.pluck(events, "gameSessionId");
+    this.store.getUserDataBySessions(gameSessionIdList)
+        .then(function(userDataList){
+
+            events.forEach(function(event, i) {
+
+                if( event.gameSessionId &&
+                    userDataList[event.gameSessionId]) {
+                    // add user Id to event
+                    event.userId = userDataList[event.gameSessionId].userId;
+                }
 
                 var row = [];
                 if( i != 0 &&
@@ -192,12 +198,9 @@ return when.promise(function(resolve, reject) {
 
                     outList[i] = csv().stringifier.stringify(row) + "\n";
                 }
-            }.bind(this))
+            }.bind(this));
 
-        promiseList.push(p);
-    }.bind(this));
-
-    when.all(promiseList)
+        }.bind(this))
         .then(function(){
             console.log("Done Processing "+events.length+" Events");
             var strOut = parsedSchema.header + "\n";
@@ -210,6 +213,7 @@ return when.promise(function(resolve, reject) {
 
             resolve(strOut);
         }.bind(this))
+
 // ------------------------------------------------
 }.bind(this));
 // end promise wrapper

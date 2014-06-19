@@ -55,7 +55,7 @@ return when.promise(function(resolve, reject) {
     }.bind(this));
 
     this.client.on('connect', function () {
-        console.log("CouchBase ResearchStore: Options -", options);
+        //console.log("CouchBase ResearchStore: Options -", options);
         resolve();
     }.bind(this));
 
@@ -118,7 +118,6 @@ return when.promise(function(resolve, reject) {
             }
 
             var keys = [];
-            var allEvents = [];
             for (var i = 0; i < results.length; ++i) {
                 keys.push( results[i].id );
             }
@@ -153,26 +152,87 @@ return when.promise(function(resolve, reject) {
 // end promise wrapper
 };
 
-ResearchDS_Couchbase.prototype.validateSession = function(gameSessionId){
+
+ResearchDS_Couchbase.prototype.getUserDataBySessions = function(gameSessionIdList){
 // add promise wrapper
 return when.promise(function(resolve, reject) {
 // ------------------------------------------------
 
-    var key = "gd:gs:"+gameSessionId;
-    this.client.get(key, function(err, data){
-        if(err){
-            if(err.code == 13) {
-                resolve({});
-                return;
+    var taskList = reshape(gameSessionIdList, this.options.multiGetChunkSize);
+    console.log("getUserDataBySessions totalEvents:", taskList.length);
+
+    var guardedAsyncOperation, taskResults;
+    // Allow only 1 inflight execution of guarded
+    guardedAsyncOperation = guard(guard.n(1), this._getSessions.bind(this));
+    taskResults = when.map(taskList, guardedAsyncOperation);
+    taskResults.then(
+        function(list){
+            var finalList = {};
+            for(var i = 0; i < list.length; i++) {
+                finalList = _.merge(finalList, list[i]);
             }
 
-            console.error("CouchBase TelemetryStore: Validate Session Error -", err);
+            console.log("CouchBase ResearchStore: getUserDataBySessions total events:", list.length);
+            return finalList;
+        }.bind(this),
+        //errors
+        function(err){
             reject(err);
-            return;
-        }
+        }.bind(this)
+    )
+    .done(function(events){
+        resolve(events);
+    }.bind(this));
 
-        var gameSessionData = data.value;
-        resolve(gameSessionData);
+// ------------------------------------------------
+}.bind(this));
+// end promise wrapper
+};
+
+
+ResearchDS_Couchbase.prototype._getSessions = function(gameSessionIdList){
+// add promise wrapper
+return when.promise(function(resolve, reject) {
+// ------------------------------------------------
+
+    // add key prepender for loop up
+    var keys = [];
+    for(var i = 0; i < gameSessionIdList.length; i++) {
+        keys[i] = "gd:gs:"+gameSessionIdList[i];
+    }
+
+    this.client.getMulti(keys, {},
+        function(err, results){
+            if (err) {
+                if(err.code == 4101) {
+
+                    for (var i in results) {
+                        if( results[i].error &&
+                            (results[i].error.code == 13) )
+                        {
+                            results[i].value = {};
+                        }
+                    }
+
+                } else {
+                    console.error("CouchBase ResearchStore: Multi Get Sessions Error -", err);
+                    if (results) {
+                        console.error("CouchBase ResearchStore: Multi Get Sessions Error - results:", results);
+                    }
+                    reject(err);
+                    return;
+                }
+            }
+
+            var data = {};
+            for (var i in results) {
+                var item = results[i].value;
+                if(item.gameSessionId) {
+                    data[item.gameSessionId] = item;
+                }
+            }
+
+            resolve(data);
     }.bind(this));
 
 // ------------------------------------------------
