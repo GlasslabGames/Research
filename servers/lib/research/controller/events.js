@@ -157,7 +157,9 @@ return when.promise(function(resolve, reject) {
             events.forEach(function(event, i) {
 
                 if( event.gameSessionId &&
-                    userDataList[event.gameSessionId]) {
+                    userDataList[event.gameSessionId] &&
+                    userDataList[event.gameSessionId].userId
+                  ) {
                     // add user Id to event
                     event.userId = userDataList[event.gameSessionId].userId;
                 }
