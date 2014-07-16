@@ -267,4 +267,48 @@ return when.promise(function(resolve, reject) {
 // ------------------------------------------------
 }.bind(this));
 // end promise wrapper
-}
+};
+
+ResearchDS_Couchbase.prototype.setCsvDataByGameId = function(gameId, data) {
+// add promise wrapper
+    return when.promise(function(resolve, reject) {
+// ------------------------------------------------
+
+        var key = "g:"+gameId+":parse-csv";
+        this.client.set(key, data, {format:'utf8'},
+            function (err, results) {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+
+                resolve();
+            }.bind(this));
+// ------------------------------------------------
+    }.bind(this));
+// end promise wrapper
+};
+
+ResearchDS_Couchbase.prototype.getCsvDataByGameId = function(gameId) {
+// add promise wrapper
+    return when.promise(function(resolve, reject) {
+// ------------------------------------------------
+
+        var key = "g:"+gameId+":parse-csv";
+        this.client.get(key, {format:'utf8'},
+            function (err, results) {
+                if (err) {
+                    if(err.code == 13) {
+                        resolve();
+                        return;
+                    }
+                    reject(err);
+                    return;
+                }
+
+                resolve(results.value);
+            }.bind(this));
+// ------------------------------------------------
+    }.bind(this));
+// end promise wrapper
+};

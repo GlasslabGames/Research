@@ -46,6 +46,27 @@ RequestUtil.prototype.errorResponse = function(res, obj, code){
     this.jsonResponse(res, obj, code);
 };
 
+RequestUtil.prototype.downloadResponse = function(res, data, name){
+    if(!name) { name = "download"; }
+
+    res.writeHead(200, {
+        "Content-Type": "application/force-download",
+        "Content-Transfer-Encoding": "binary",
+        "Content-Disposition": "attachment; filename=\""+name+"\"",
+        "Content-Length": data.length
+    });
+    res.end( data );
+};
+
+RequestUtil.prototype.textResponse = function(res, data, code){
+    if(!code) { code = 200; }
+
+    res.writeHead(code, {
+        "Content-Type": "text/plain"
+    });
+    res.end( data );
+};
+
 RequestUtil.prototype.jsonResponse = function(res, obj, code){
     var json = _.isObject(obj) ? JSON.stringify(obj) : obj;
     if(!code) { code = 200; }

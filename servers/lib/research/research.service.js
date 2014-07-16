@@ -37,7 +37,6 @@ function ResearchService(options){
         this.requestUtil = new Util.Request(this.options);
         this.store       = new Research.Datastore.Couchbase(this.options.research.datastore.couchbase);
         this.stats       = new Util.Stats(this.options, "Research");
-        this.parsedSchema = {};
 
     } catch(err) {
         console.trace("Auth: Error -", err);
@@ -68,12 +67,26 @@ return when.promise(function(resolve, reject) {
             //console.log("dir:", dir);
             fs.readdir(dir, function(error, files) {
                 _.forEach(files, function(file){
-                    var name = path.basename(file, path.extname(file));
+                    var fullFile = dir + file;
 
-                    if(!this.parsedSchema.hasOwnProperty(name)) {
-                        this.parsedSchema[name] = { header: "", rows: {} };
+                    var gameId = path.basename(file, path.extname(file));
+                    gameId = gameId.toLowerCase();
+
+                    // skip all dot files
+                    if(gameId.charAt(0) == '.') {
+                        return;
                     }
 
+                    this.store.getCsvDataByGameId(gameId)
+                        .then(function(data){
+                            // only set data if none exist
+                            if(!data) {
+                                return this.store.setCsvDataByGameId(gameId, fs.readFileSync(fullFile, {encoding: 'utf8'}) );
+                            }
+                        }.bind(this))
+                        .then(resolve, reject);
+
+                    /*
                     console.log("Reading CSV file:", dir + file);
                     csv()
                         .from.path(dir + file, { delimiter: ',', escape: '"' })
@@ -98,6 +111,7 @@ return when.promise(function(resolve, reject) {
                         .on('error', function(error){
                             reject(error);
                         }.bind(this));
+                    */
                 }.bind(this));
             }.bind(this));
 

@@ -30,6 +30,6 @@
         }
     },
     "webapp": {
-        "staticContentPath": "static"
+        "staticContentPath": "static/dist"
     }
 }
