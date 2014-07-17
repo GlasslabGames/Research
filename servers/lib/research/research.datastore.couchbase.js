@@ -77,33 +77,39 @@ function reshape(array, n){
 }
 
 
-ResearchDS_Couchbase.prototype.getEventsByDate = function(startDateArray, endDateArray, limit){
+ResearchDS_Couchbase.prototype.getEventsByGameIdDate = function(gameId, startDateArray, endDateArray, limit){
 // add promise wrapper
 return when.promise(function(resolve, reject) {
 // ------------------------------------------------
 
-    startDateArray[1]++; // month starts at 0, so need to add one
-    startDateArray[6] = null;
-    //startDateArray.pop();
+    var startkey, endkey;
+
+    // year, month, day, hour, min, sec, micro, gameId, userId
+    startkey = _.cloneDeep(startDateArray);
+    startkey[1]++; // month starts at 0, so need to add one
+    startkey.unshift( gameId );
+
+    // if endDateArray exists then use this data for array
+    endkey = _.cloneDeep(endDateArray || ["\u0fff", "\u0fff", "\u0fff", "\u0fff", "\u0fff", "\u0fff"]);
+    // if endDateArray exists then adjust month and set micro sec to all
+    if(endDateArray) {
+        endkey[1]++;   // month starts at 0, so need to add one
+    }
+    // use gameId if exist, otherwise wildcard
+    endkey.unshift( gameId );
 
     var options = {
-        startkey: startDateArray
+        startkey: startkey,
+        endkey: endkey,
+        inclusive_end: true
     };
-
-    if(endDateArray) {
-        endDateArray[1]++;   // month starts at 0, so need to add one
-        endDateArray[6]   = "\u0fff";
-
-        options.endkey = endDateArray;
-        options.inclusive_end = true;
-    }
 
     if(limit) {
         options.limit = parseInt(limit);
     }
 
-    //console.log("CouchBase ResearchStore: getEventsByDate - options:", options);
-    this.client.view("telemetry", "getEventsByServerTimeStamp").query(
+    console.log("CouchBase ResearchStore: getEventsByDate - options:", options);
+    this.client.view("telemetry", "getEventsByGameId_ServerTimeStamp").query(
         options,
         function(err, results){
            if(err){
@@ -123,7 +129,7 @@ return when.promise(function(resolve, reject) {
             }
 
             var taskList = reshape(keys, this.options.multiGetChunkSize);
-            console.log("getEventsByKeys totalEvents:", taskList.length);
+            console.log("CouchBase ResearchStore: getEventsByKeys Number of Chunks:", taskList.length);
 
             var guardedAsyncOperation, taskResults;
             // Allow only 1 inflight execution of guarded

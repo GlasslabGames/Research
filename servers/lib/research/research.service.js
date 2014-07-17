@@ -86,32 +86,6 @@ return when.promise(function(resolve, reject) {
                         }.bind(this))
                         .then(resolve, reject);
 
-                    /*
-                    console.log("Reading CSV file:", dir + file);
-                    csv()
-                        .from.path(dir + file, { delimiter: ',', escape: '"' })
-                        .on('record', function(row, index){
-
-                            // header
-                            if(index == 0) {
-                                row.shift(); // remove first column
-                                this.parsedSchema[name].header = csv().stringifier.stringify(row);
-                            } else {
-                                var key = row.shift(); // remove first (key) column
-                                this.parsedSchema[name].rows[ key ] = row;
-                            }
-
-                            //console.log('#'+index+' '+JSON.stringify(row));
-                            //console.log(this.parsedSchema[name]);
-                        }.bind(this))
-                        .on('end', function(){
-                            //console.log("Parsed Schema for", name, ":", this.parsedSchema[name]);
-                            resolve();
-                        }.bind(this))
-                        .on('error', function(error){
-                            reject(error);
-                        }.bind(this));
-                    */
                 }.bind(this));
             }.bind(this));
 

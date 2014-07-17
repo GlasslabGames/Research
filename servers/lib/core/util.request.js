@@ -46,14 +46,14 @@ RequestUtil.prototype.errorResponse = function(res, obj, code){
     this.jsonResponse(res, obj, code);
 };
 
-RequestUtil.prototype.downloadResponse = function(res, data, name){
+RequestUtil.prototype.downloadResponse = function(res, data, name, type){
     if(!name) { name = "download"; }
+    if(!type) { type = "application/force-download"; }
 
     res.writeHead(200, {
-        "Content-Type": "application/force-download",
-        "Content-Transfer-Encoding": "binary",
-        "Content-Disposition": "attachment; filename=\""+name+"\"",
-        "Content-Length": data.length
+        "Content-Type": type
+        ,"Content-Disposition": "attachment; filename=\""+name+"\""
+        //,"Content-Length": data.length
     });
     res.end( data );
 };

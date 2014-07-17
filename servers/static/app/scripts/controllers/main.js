@@ -8,13 +8,14 @@
  * Controller of the staticApp
  */
 angular.module('staticApp')
-  .controller('MainCtrl', function ($scope, $http) {
-        $scope.gameId = "AA-1";
+  .controller('MainCtrl', function ($scope, $http, $window) {
+        $scope.gameId = "aa-1";
         $scope.userIds = "";
         $scope.startDate = "";
         $scope.endDate = "";
         $scope.outData = "";
-        $scope.saveToFile = true;
+        $scope.numEvents = 0;
+        $scope.saveToFile = false;
         $scope.loading = false;
         $scope.startDateOpened = false;
         $scope.endDateOpened = false;
@@ -41,31 +42,42 @@ angular.module('staticApp')
                 //console.log("startDate:", sd);
                 //console.log("endDate:", ed);
 
-                $scope.loading = true;
-                $http({
-                    method: 'GET',
-                    url: '/api/game/'+$scope.gameId+'/events',
-                    params: {
-                        startDate:  sd,
-                        endDate:    ed,
-                        saveToFile: $scope.saveToFile
-                    }
-                }).success(function(data){
-                    $scope.loading = false;
+                var url = '/api/game/'+$scope.gameId+'/events';
 
-                    console.log("events data:", data);
-                    $scope.outData = data.data;
+                if($scope.saveToFile) {
+                    url += "?startDate="+sd+
+                           "&endDate="+ed+
+                           "&saveToFile="+$scope.saveToFile;
+                    $window.open(url);
+                } else {
+                    $scope.outData = "";
+                    $scope.loading = true;
+                    $http({
+                        method: 'GET',
+                        url: url,
+                        params: {
+                            startDate:  sd,
+                            endDate:    ed,
+                            saveToFile: $scope.saveToFile
+                        }
+                    }).success(function(data){
+                        $scope.loading = false;
 
-                }).error(function(err){
-                    console.error("parse-schema:", err);
+                        //console.log("events data:", data);
+                        $scope.outData = data.data;
+                        $scope.numEvents = data.numEvents;
 
-                    $scope.loading = false;
-                });
+                    }).error(function(err){
+                        console.error("parse-schema:", err);
+                        $scope.loading = false;
+                    });
+                }
             }
         };
 
         $scope.today = function() {
             $scope.startDate = new Date();
+            $scope.startDate.setHours(0,0,0,0);
         };
         $scope.today();
 
@@ -87,8 +99,7 @@ angular.module('staticApp')
         $scope.minDate = null;
         $scope.maxDate = new Date();
         $scope.dateOptions = {
-            formatYear: 'yy',
-            //startingDay: 1
+            formatYear: 'yy'
         };
 
         $scope.format = 'yyyy-MM-dd';

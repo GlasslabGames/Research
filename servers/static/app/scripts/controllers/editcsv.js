@@ -9,7 +9,7 @@
  */
 angular.module('staticApp')
   .controller('EditcsvCtrl', function ($scope, $http) {
-        $scope.gameId = "AA-1";
+        $scope.gameId = "aa-1";
         $scope.csvData = "";
         $scope.loading = true;
 
