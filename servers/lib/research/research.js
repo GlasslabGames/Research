@@ -7,7 +7,8 @@ module.exports = {
     LongName: "Research",
     ServiceName: "research",
     Controller: {
-        events: require('./controller/events.js')
+        events: require('./controller/events.js'),
+        csv: require('./controller/csv.js')
     },
     Service: require('./research.service.js'),
     Datastore: {

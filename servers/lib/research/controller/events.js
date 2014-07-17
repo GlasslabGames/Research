@@ -18,7 +18,15 @@ module.exports = {
 
  required:
     gameId
+
+ optional
     startDate
+    endDate
+    userIds
+    saveToFile
+
+    startEpoc
+    dateRange
  */
 function getEventsByDate(req, res, next){
     try {
@@ -30,30 +38,20 @@ function getEventsByDate(req, res, next){
             return;
         }
 
-        if(!req.query.gameId) {
-            this.requestUtil.errorResponse(res, {error: "missing gameId"}, 401);
+        if( !( req.params &&
+            req.params.hasOwnProperty("gameId") ) ) {
+            this.requestUtil.errorResponse(res, {error: "missing game id"});
             return;
         }
-        var gameIds = req.query.gameId;
-        try {
-            //  if not array then make array
-            if (_.isString(gameIds)) {
-                gameIds = JSON.parse(gameIds);
-            }
-        } catch(err) {
-            // this is ok, will assume it's just a string
-            gameIds = [gameIds];
-        }
+        var gameId = req.params.gameId;
+        // gameId are not case sensitive
+        gameId = gameId.toLowerCase();
 
+        var parsedSchemaData = { header: "", rows: {} };
         // if no schema assume it's gameId
-        var schema = gameIds[0];
+        var schema = gameId;
         if(req.query.schema) {
             schema = req.query.schema;
-        }
-
-        if(!this.parsedSchema.hasOwnProperty(schema)) {
-            this.requestUtil.errorResponse(res, {error: "missing game parser schema"}, 401);
-            return;
         }
 
         var startDate = moment({hour: 0});
@@ -63,6 +61,10 @@ function getEventsByDate(req, res, next){
         }
         if(req.query.startDate) {
             startDate = req.query.startDate;
+            // if starts with " then strip "s
+            if(startDate.charAt(0) == '"') {
+                startDate = startDate.substring(1, startDate.length-1);
+            }
         }
         if(!startDate) {
             this.requestUtil.errorResponse(res, {error: "missing startDate or startEpoc missing"}, 401);
@@ -82,8 +84,18 @@ function getEventsByDate(req, res, next){
             }
         }
         if(req.query.endDate) {
-            endDate = moment(req.query.endDate);
+            endDate = req.query.endDate;
+            // if starts with " then strip "s
+            if(endDate.charAt(0) == '"') {
+                endDate = endDate.substring(1, endDate.length-1);
+            }
+            endDate = moment(endDate);
         }
+        endDate.hour(23);
+        endDate.minute(59);
+        endDate.seconds(59);
+        endDate = endDate.utc();
+
 
         var timeFormat = "MM/DD/YYYY HH:mm:ss";
         if(req.query.timeFormat) {
@@ -95,126 +107,197 @@ function getEventsByDate(req, res, next){
             limit = req.query.limit;
         }
 
-        console.log("Getting Events from", startDate.format("MM/DD/YYYY"), "to", endDate.format("MM/DD/YYYY"));
-        this.store.getEventsByDate(startDate.toArray(), endDate.toArray(), limit)
+        var saveToFile = false;
+        if(req.query.saveToFile) {
+            saveToFile = (req.query.saveToFile === "true" ? true : false);
+        }
+
+        this.store.getCsvDataByGameId(gameId)
+            .then(function(csvData){
+                return parseCSVSchema(csvData);
+            }.bind(this))
+
+            .then(function(_parsedSchemaData){
+                parsedSchemaData = _parsedSchemaData;
+
+                console.log("Getting Events For Game:", gameId, "from", startDate.format("MM/DD/YYYY"), "to", endDate.format("MM/DD/YYYY"));
+                return this.store.getEventsByGameIdDate(gameId, startDate.toArray(), endDate.toArray(), limit)
+            }.bind(this))
+
             .then(function(events){
 
                 try {
                     console.log("Running Filter...");
-                    events = _.filter(events,
-                        function (event) {
-                            return _.find(gameIds, function(gameId) {
-                                return ((event.gameId == gameId) || (event.clientId == gameId));
+                    console.log("Processing", events.length, "Events...");
+
+                    // process events
+                    var p = processEvents.call(this, parsedSchemaData, events, timeFormat);
+                    p.then(function(outList) {
+                        var outData = outList.join("\n");
+
+                        if(saveToFile) {
+                            var file = gameId
+                                +"_"+startDate.format("YYYY-DD-MM")
+                                +"_"+endDate.format("YYYY-DD-MM")
+                                +".csv";
+                            this.requestUtil.downloadResponse(res, outData, file, 'text/csv');
+
+                            /*
+                            this.requestUtil.jsonResponse(res, {
+                                numEvents: outList.length - 1, // minus header
+                                data: outData
+                            });
+                            */
+                        } else {
+                            this.requestUtil.jsonResponse(res, {
+                                numEvents: outList.length - 1, // minus header
+                                data: outData
                             });
                         }
-                    );
-
-                    console.log("Processing", events.length, "Events...");
-                    // process events
-                    var p = processEvents.call(this, schema, events, timeFormat);
-                    p.then(function(out){
-                        res.writeHead(200, {
-                            'Content-Type': 'text/plain'
-                            //'Content-Type': 'text/csv'
-                        });
-                        res.end(out);
                     }.bind(this));
 
                 } catch(err) {
                     console.trace("Research: Process Events -", err);
-                    this.stats.increment("error", "ProcessEvents.Catch");
                     this.requestUtil.errorResponse(res, {error: err});
                 }
 
-            }.bind(this),
-            function(err){
+            }.bind(this))
+
+            // catch all
+            .then(null, function(err){
                 this.requestUtil.errorResponse(res, err);
-            }.bind(this)
-        );
+            }.bind(this));
+
     } catch(err) {
         console.trace("Research: Get User Data Error -", err);
-        this.stats.increment("error", "GetUserData.Catch");
         this.requestUtil.errorResponse(res, {error: err});
     }
 }
 
-function processEvents(schema, events, timeFormat) {
+function parseCSVSchema(csvData) {
+// add promise wrapper
+return when.promise(function(resolve, reject) {
+// ------------------------------------------------
+    var parsedSchemaData = { header: "", rows: {} };
+
+    try {
+        csv()
+        .from(csvData, { delimiter: ',', escape: '"' })
+        .on('record', function(row, index){
+
+            // header
+            if(index == 0) {
+                row.shift(); // remove first column
+                parsedSchemaData.header = csv().stringifier.stringify(row);
+            } else {
+                var key = row.shift(); // remove first (key) column
+                parsedSchemaData.rows[ key ] = row;
+            }
+
+            //console.log('#'+index+' '+JSON.stringify(row));
+        }.bind(this))
+        .on('end', function(){
+            resolve(parsedSchemaData);
+        }.bind(this))
+        .on('error', function(error){
+            reject(error);
+        }.bind(this));
+
+    } catch(err) {
+        console.trace("Research: Parse CSV Schema Error -", err);
+        this.requestUtil.errorResponse(res, {error: err});
+    }
+
+// ------------------------------------------------
+}.bind(this));
+// end promise wrapper
+}
+
+
+function processEvents(parsedSchema, events, timeFormat) {
 // add promise wrapper
 return when.promise(function(resolve, reject) {
 // ------------------------------------------------
 
     //console.log("events:", events);
-    var parsedSchema = this.parsedSchema[schema];
     //console.log("Parsed Schema for", schema, ":", parsedSchema);
 
+    var outIt = 0;
     var outList = [];
-    var promiseList = [];
 
     gameSessionIdList = _.pluck(events, "gameSessionId");
     this.store.getUserDataBySessions(gameSessionIdList)
         .then(function(userDataList){
 
+            var timeDiff = 0;
             events.forEach(function(event, i) {
 
-                if( event.gameSessionId &&
-                    userDataList[event.gameSessionId] &&
-                    userDataList[event.gameSessionId].userId
-                  ) {
-                    // add user Id to event
-                    event.userId = userDataList[event.gameSessionId].userId;
-                }
-
-                var row = [];
-                if( i != 0 &&
-                    i % this.options.research.dataChunkSize == 0) {
-                    console.log("Processed Events:", i);
-                }
-
-                // event name exists in parse map
-                if( parsedSchema.rows.hasOwnProperty(event.eventName) ) {
-                    row = _.clone(parsedSchema.rows[ event.eventName ]);
-                }
-                // wildcard to catch all other event types
-                else if( parsedSchema.rows.hasOwnProperty('*') ) {
-                    row = _.clone(parsedSchema.rows['*']);
-                } else {
-                    //console.log("Process Event - Event Name not in List:", event.eventName);
-                }
-
-                if(timeFormat) {
-                    // need to convert EPOC to milliseconds
-                    event.clientTimeStamp = moment(event.clientTimeStamp*1000).format(timeFormat);
-                    event.serverTimeStamp = moment(event.serverTimeStamp*1000).format(timeFormat);
-                }
-
-                if(row.length > 0) {
-                    // check each row item
-                    for(var r in row) {
-                        if(row[r] == '*') {
-                            row[r] = JSON.stringify(event);
-                        } else {
-                            row[r] = parseItems(event, row[r], '{', '}');
-                            row[r] = parseItems(event.eventData, row[r], '[', ']');
-                        }
+                try {
+                    var startTime = moment();
+                    var row = [];
+                    if( i != 0 &&
+                        i % this.options.research.dataChunkSize == 0)
+                    {
+                        var avgTimeDiff = timeDiff/i;
+                        console.log("Processed Events:", i, ", Avg Time:", avgTimeDiff.toFixed(3));
                     }
 
-                    outList[i] = csv().stringifier.stringify(row) + "\n";
+                    if( !event.userId &&
+                        event.gameSessionId &&
+                        userDataList[event.gameSessionId] &&
+                        userDataList[event.gameSessionId].userId
+                      ) {
+                        // add user Id to event
+                        event.userId = userDataList[event.gameSessionId].userId;
+                    }
+
+                    // event name exists in parse map
+                    if( parsedSchema.rows.hasOwnProperty(event.eventName) ) {
+                        row = _.clone(parsedSchema.rows[ event.eventName ]);
+                    }
+                    // wildcard to catch all other event types
+                    else if( parsedSchema.rows.hasOwnProperty('*') ) {
+                        row = _.clone(parsedSchema.rows['*']);
+                    } else {
+                        //console.log("Process Event - Event Name not in List:", event.eventName);
+                    }
+
+                    if(timeFormat) {
+                        // need to convert EPOC to milliseconds
+                        event.clientTimeStamp = moment(event.clientTimeStamp*1000).format(timeFormat);
+                        event.serverTimeStamp = moment(event.serverTimeStamp*1000).format(timeFormat);
+                    }
+
+                    if(row.length > 0) {
+                        // check each row item
+                        for(var r in row) {
+                            if(row[r] == '*') {
+                                row[r] = JSON.stringify(event);
+                            } else {
+                                row[r] = parseItems(event, row[r], '{', '}');
+                                row[r] = parseItems(event.eventData, row[r], '[', ']');
+                            }
+                        }
+
+                        outList[outIt] = csv().stringifier.stringify(row);
+                        outIt++;
+                    }
+
+                    timeDiff += moment().diff(startTime);
+                } catch(err) {
+                    console.trace("Research: Process Events Error -", err);
+                    reject(err);
                 }
             }.bind(this));
 
         }.bind(this))
         .then(function(){
-            console.log("Done Processing "+events.length+" Events");
-            var strOut = parsedSchema.header + "\n";
+            console.log("Done Processing", events.length, "Events -> Out Events", outList.length);
 
-            for(var i = 0; i < outList.length; i++) {
-                if(outList[i]) {
-                    strOut += outList[i];
-                }
-            }
-
-            resolve(strOut);
-        }.bind(this))
+            // add header
+            outList.unshift(parsedSchema.header);
+            resolve(outList);
+        }.bind(this));
 
 // ------------------------------------------------
 }.bind(this));
