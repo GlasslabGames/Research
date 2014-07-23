@@ -7,6 +7,12 @@ start() {
     # install dependencies from package.json
     npm install
     grunt
+    # build static content
+    cd static
+    npm install
+    bower install --allow-root
+    grunt build
+    cd ..
 
     ./service_start.sh research
 }
