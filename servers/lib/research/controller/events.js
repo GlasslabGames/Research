@@ -45,7 +45,7 @@ function getEventsByDate(req, res, next){
         }
         var gameId = req.params.gameId;
         // gameId are not case sensitive
-        gameId = gameId.toLowerCase();
+        gameId = gameId.toUpperCase();
 
         var parsedSchemaData = { header: "", rows: {} };
         // if no schema assume it's gameId

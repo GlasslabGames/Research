@@ -70,7 +70,7 @@ return when.promise(function(resolve, reject) {
                     var fullFile = dir + file;
 
                     var gameId = path.basename(file, path.extname(file));
-                    gameId = gameId.toLowerCase();
+                    gameId = gameId.toUpperCase();
 
                     // skip all dot files
                     if(gameId.charAt(0) == '.') {
