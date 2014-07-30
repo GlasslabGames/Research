@@ -18,7 +18,7 @@ function getCsvParseSchema(req, res, next){
         }
         var gameId = req.params.gameId;
         // gameIds are not case sensitive
-        gameId = gameId.toLowerCase();
+        gameId = gameId.toUpperCase();
 
         this.store.getCsvDataByGameId(gameId)
             .then(function(data){
@@ -46,7 +46,7 @@ function updateCsvParseSchema(req, res, next){
         }
         var gameId = req.params.gameId;
         // gameIds are not case sensitive
-        gameId = gameId.toLowerCase();
+        gameId = gameId.toUpperCase();
 
         if( !( req.body &&
             req.body.hasOwnProperty("data") ) ) {
