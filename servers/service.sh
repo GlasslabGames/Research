@@ -18,7 +18,7 @@ start() {
 }
 
 stop() {
-    forever stop research
+    forever stop app-research.js
 }
 
 case "$1" in
