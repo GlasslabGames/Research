@@ -18,7 +18,7 @@ start() {
 }
 
 stop() {
-    forever stopall
+    forever stop research
 }
 
 case "$1" in
