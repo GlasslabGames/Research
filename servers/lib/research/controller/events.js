@@ -263,9 +263,15 @@ return when.promise(function(resolve, reject) {
                     }
 
                     if(timeFormat) {
+                        // convert timestamp if not in milliseconds
+                        var ct = event.clientTimeStamp;
+                        var st = event.serverTimeStamp;
+                        if(ct < 10000000000) ct *= 1000;
+                        if(st < 10000000000) st *= 1000;
+
                         // need to convert EPOC to milliseconds
-                        event.clientTimeStamp = moment(event.clientTimeStamp*1000).format(timeFormat);
-                        event.serverTimeStamp = moment(event.serverTimeStamp*1000).format(timeFormat);
+                        event.clientTimeStamp = moment(ct).format(timeFormat);
+                        event.serverTimeStamp = moment(st).format(timeFormat);
                     }
 
                     if(row.length > 0) {
