@@ -9,9 +9,7 @@ start() {
     grunt
     # build static content
     cd static
-    npm install
-    bower install --allow-root
-    grunt build
+    ./build.sh
     cd ..
 
     ./service_start.sh research
