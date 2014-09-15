@@ -58,11 +58,12 @@ RequestUtil.prototype.downloadResponse = function(res, data, name, type){
     res.end( data );
 };
 
-RequestUtil.prototype.textResponse = function(res, data, code){
+RequestUtil.prototype.textResponse = function(res, data, code, type){
     if(!code) { code = 200; }
+  if(!type) { type = "text/plain"; }
 
     res.writeHead(code, {
-        "Content-Type": "text/plain"
+        "Content-Type": type
     });
     res.end( data );
 };
